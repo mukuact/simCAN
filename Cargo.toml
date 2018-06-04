@@ -1,0 +1,6 @@
+[package]
+name = "simCAN"
+version = "0.1.0"
+authors = ["muku"]
+
+[dependencies]
