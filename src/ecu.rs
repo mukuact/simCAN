@@ -33,7 +33,6 @@ impl ECU {
         let mut frame = CANFrame::new(self.id);
         let input_byte = Encoder::encode(input).unwrap();
         frame.set_RTR_and_ctr_bits(input_byte.len());
-        frame.print();
         true
     }
 
