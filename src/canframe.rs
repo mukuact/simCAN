@@ -3,18 +3,18 @@ use self::bit_field::BitField;
 use std::fmt;
 
 pub struct CANFrame {
-    frame: [i32; 3],
+    frame: [u32; 3],
 }
 
 impl CANFrame{
     pub fn new(id: usize) -> CANFrame {
-        if id > 0x7FF || id < 0 {
+        if id > 0x7FF {
             panic!();
         }
 
-        let mut sender: i32 = id as i32;
+        let mut sender: u32 = id as u32;
         sender = sender << 20;
-        let length = i32::bit_length();
+        let length = u32::bit_length();
         sender.set_bit(length-1, true);
 
         CANFrame {
@@ -31,29 +31,27 @@ impl CANFrame{
         // set IDE, r
         self.frame[0] |= (1 << (32-14)) | (1 << (32-15)) ;
         // set data length
-        self.frame[0] |= (data_length as i32) << (32-19);
+        self.frame[0] |= (data_length as u32) << (32-19);
     }
 
     pub fn set_data(&mut self, data: &[u8]) {
         for (i, onebyte) in data.iter().enumerate() {
             match i {
-                0 => self.frame[0] |= (*onebyte as i32) << 5,
+                0 => self.frame[0] |= (*onebyte as u32) << 5,
                 1 => {
-                    println!("{:b}", onebyte.get_bits(3..8));
-                    self.frame[0] |= (onebyte.get_bits(3..8) as i32) ;
-                    println!("{:b}", onebyte.get_bits(0..3));
-                    self.frame[1] |= (onebyte.get_bits(0..3) as i32) << 27;
+                    self.frame[0] |= (onebyte.get_bits(3..8) as u32) ;
+                    self.frame[1] |= (onebyte.get_bits(0..3) as u32) << 27;
                 },
-                2 => self.frame[1] |= (*onebyte as i32) << 19,
-                3 => self.frame[1] |= (*onebyte as i32) << 11,
-                4 => self.frame[1] |= (*onebyte as i32) << 3,
+                2 => self.frame[1] |= (*onebyte as u32) << 19,
+                3 => self.frame[1] |= (*onebyte as u32) << 11,
+                4 => self.frame[1] |= (*onebyte as u32) << 3,
                 5 => { 
-                    self.frame[1] |= (onebyte.get_bits(5..8) as i32);
-                    self.frame[2] |= (onebyte.get_bits(0..5) as i32) << 25;
+                    self.frame[1] |= (onebyte.get_bits(5..8) as u32);
+                    self.frame[2] |= (onebyte.get_bits(0..5) as u32) << 25;
                 },
-                6 => self.frame[2] |= (*onebyte as i32) << 17,
-                7 => self.frame[2] |= (*onebyte as i32) << 9,
-                8 => self.frame[2] |= (*onebyte as i32) << 1,
+                6 => self.frame[2] |= (*onebyte as u32) << 17,
+                7 => self.frame[2] |= (*onebyte as u32) << 9,
+                // 8 => self.frame[2] |= (*onebyte as u32) << 1,
                 _ => println!("fuga"),
             }
             println!("{}: {:b}", i, onebyte);
