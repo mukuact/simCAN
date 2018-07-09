@@ -26,6 +26,8 @@ impl CANFrame{
         if data_length > 8 {
             panic!("data_length must be within 8bytes");
         }
+        // reset RTR, IDE, r, data_length
+        self.frame[0] &= !0x0007E000;
         // set RTR
         self.frame[0] |= 1 << (32-13) ;
         // set IDE, r
@@ -34,8 +36,14 @@ impl CANFrame{
         self.frame[0] |= (data_length as u32) << (32-19);
     }
 
+    fn data_size(&self) -> usize {
+        let mut data_length = 0;
+        data_length |= (self.frame[0] & 0x0001E000) >> 13;
+        data_length as usize
+    }
+
     pub fn set_data(&mut self, data: &[u8]) {
-        for (i, onebyte) in data.iter().enumerate() {
+        for (i, onebyte) in (0..self.data_size()).zip(data.iter()) {
             match i {
                 0 => self.frame[0] |= (*onebyte as u32) << 5,
                 1 => {
@@ -58,7 +66,7 @@ impl CANFrame{
         }
     }
 
-    pub fn view(&self) -> &[i32] {
+    pub fn view(&self) -> &[u32] {
         &self.frame[..]
     }
 }
