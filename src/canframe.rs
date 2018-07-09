@@ -65,7 +65,7 @@ impl CANFrame{
 
 impl fmt::Display for CANFrame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:b}_{:b}_{:b}", self.frame[0], self.frame[1], self.frame[2],)
+        write!(f, "{:032b}_{:032b}_{:032b}", self.frame[0], self.frame[1], self.frame[2],)
     }
 }
 impl fmt::UpperHex for CANFrame {
@@ -73,6 +73,8 @@ impl fmt::UpperHex for CANFrame {
         write!(f, "{:X}_{:X}_{:X}", self.frame[0], self.frame[1], self.frame[2])
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -92,39 +94,90 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn make_CANFrame_id_over() {
+    fn make_CANFrame_id_over11bit() {
         let can_frame = CANFrame::new(2100);
     }
 
     #[test]
-    fn prepare_id101_8bytes_data (){
+    fn prepare_id101_8bytes_data() {
         let mut can_frame = CANFrame::new(101);
         can_frame.set_RTR_and_ctr_bits(8);
         assert_eq!(can_frame.view()[0], 0b10000110010111110000000000000000)
     }
 
     #[test]
-    fn prepare_id101_6bytes_data (){
+    fn prepare_id101_6bytes_data() {
         let mut can_frame = CANFrame::new(101);
         can_frame.set_RTR_and_ctr_bits(6);
-        println!("{}", can_frame);
         assert_eq!(can_frame.view()[0], 0b10000110010111101100000000000000)
     }
 
     #[test]
+    fn set_RTRs_twice() {
+        let mut can_frame = CANFrame::new(101);
+        can_frame.set_RTR_and_ctr_bits(7);
+        assert_eq!(can_frame.view()[0], 0b10000110010111101110000000000000);
+        can_frame.set_RTR_and_ctr_bits(5);
+        assert_eq!(can_frame.view()[0], 0b10000110010111101010000000000000);
+    }
+
+    #[test]
     #[should_panic]
-    fn prepare_10byte_data () {
+    fn prepare_10byte_data() {
         let mut can_frame = CANFrame::new(4);
         can_frame.set_RTR_and_ctr_bits(10);
     }
 
     #[test]
-    fn test_set_data_8byte_hogefuga (){
+    fn test_set_data_8byte_hogefuga() {
         let mut can_frame = CANFrame::new(101);
         can_frame.set_RTR_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
         assert_eq!(can_frame.view()[0], 0x865F0D0D);
         assert_eq!(can_frame.view()[1], 0x3B3B2B33);
         assert_eq!(can_frame.view()[2], 0x2ACEC200);
+    }
+
+    #[test]
+    fn test_set_data_6byte_hogefuga() {
+        let mut can_frame = CANFrame::new(101);
+        can_frame.set_RTR_and_ctr_bits(6);
+        can_frame.set_data("hogefuga".as_bytes());
+        assert_eq!(can_frame.view()[0], 0x865ECD0D);
+        assert_eq!(can_frame.view()[1], 0x3B3B2B33);
+        assert_eq!(can_frame.view()[2], 0x2A000000);
+    }
+
+    #[test]
+    fn test_size() {
+        let mut can_frame = CANFrame::new(1);
+        can_frame.set_RTR_and_ctr_bits(8);
+        assert_eq!(can_frame.data_size(), 8);
+        can_frame.set_RTR_and_ctr_bits(6);
+        assert_eq!(can_frame.data_size(), 6);
+    }
+
+    #[test]
+    fn test_bitstuffing() {
+        let data: [u8; 2] = [0x3, 0xE0];
+        let mut can_frame = CANFrame::new(1);
+        can_frame.set_RTR_and_ctr_bits(2);
+        can_frame.set_data(&data);
+        can_frame.prepare_send();
+        assert_eq!(can_frame.view()[0], 0x820F8827);
+        assert_eq!(can_frame.view()[1], 0xC1041041);
+    }
+
+    #[test]
+    fn test_bitstuffing2() {
+        let data: [u8; 3] = [0x3, 0xF8, 0xDC];
+        let mut can_frame = CANFrame::new(1);
+        can_frame.set_RTR_and_ctr_bits(3);
+        can_frame.set_data(&data);
+        can_frame.prepare_send();
+        println!("{:X}", can_frame);
+        assert_eq!(can_frame.view()[0], 0x820F8C17);
+        assert_eq!(can_frame.view()[1], 0xD83B8208);
+        assert_eq!(can_frame.view()[2], 0x20820820);
     }
 }
