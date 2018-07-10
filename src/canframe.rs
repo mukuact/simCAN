@@ -159,12 +159,24 @@ impl fmt::Display for CANFrame {
         write!(f, "{:032b}_{:032b}_{:032b}", self.frame[0], self.frame[1], self.frame[2],)
     }
 }
+
+impl fmt::Debug for CANFrame {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:X}_{:X}_{:X}", self.frame[0], self.frame[1], self.frame[2])
+    }
+}
+
 impl fmt::UpperHex for CANFrame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:X}_{:X}_{:X}", self.frame[0], self.frame[1], self.frame[2])
     }
 }
 
+impl PartialEq for CANFrame {
+    fn eq(&self, other:&CANFrame) -> bool {
+        self.frame == other.frame
+    }
+}
 
 
 #[cfg(test)]
