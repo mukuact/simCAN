@@ -1,8 +1,11 @@
 extern crate bit_field;
 use self::bit_field::BitField;
+use std::cmp::Ordering;
 use std::fmt;
 use std::result::Result;
 
+
+#[derive(Clone)]
 pub struct CANFrame {
     frame: [u32; 3],
 }
@@ -178,6 +181,14 @@ impl PartialEq for CANFrame {
     }
 }
 
+impl PartialOrd for CANFrame {
+    fn partial_cmp(&self, other: &CANFrame) -> Option<Ordering> {
+        let own_id = (self.frame[0] & 0x4FF00000) >> 20; 
+        let other_id = (other.frame[0] & 0x4FF00000) >> 20; 
+        Some(own_id.cmp(&other_id))
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -282,5 +293,26 @@ mod tests {
         assert_eq!(can_frame.view()[0], 0x820F8C17);
         assert_eq!(can_frame.view()[1], 0xD83B8208);
         assert_eq!(can_frame.view()[2], 0x20820820);
+    }
+
+    #[test]
+    fn test_ord_id_11_vs_30() {
+        let mut can_frame1 = CANFrame::new(11);
+        let mut can_frame2 = CANFrame::new(30);
+        
+        let result = can_frame1 < can_frame2;
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_ord_same_id_different_data () {
+        let mut can_frame1 = CANFrame::new(11);
+        let mut can_frame2 = CANFrame::new(11);
+        
+        let result_true = can_frame1 <= can_frame2;
+        let result_false = can_frame1 < can_frame2;
+
+        assert_eq!(result_true, true);
+        assert_eq!(result_false, false);
     }
 }
