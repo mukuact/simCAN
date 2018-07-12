@@ -18,8 +18,11 @@ impl Bus {
     }
 
     fn send(&mut self, input: CANFrame) -> () {
-        //TODO: check header and choose data.
-        self.content = Some(input)
+        if self.content.is_some() && (self.recieve().unwrap() < &input) {
+            return;
+        } else {
+            self.content = Some(input);
+        }
     }
 
     fn recieve(&self) -> Option<&CANFrame> {
@@ -56,8 +59,32 @@ mod tests {
     }
 
     #[test]
-    fn test_bus_send_twice() {
-        assert!(false)
+    fn test_bus_send_twice_first_prior() {
+        let mut can_frame1 = CANFrame::new(5);
+        let mut can_frame2 = CANFrame::new(10);
+
+        let ref_canframe = can_frame1.clone();
+
+        let mut bus = Bus::new();
+        bus.borrow_mut().send(can_frame1);
+        bus.borrow_mut().send(can_frame2);
+
+        assert_eq!(ref_canframe, *bus.borrow().recieve().unwrap());
+
+    }
+
+    #[test]
+    fn test_bus_send_twice_second_prior() {
+        let mut can_frame1 = CANFrame::new(10);
+        let mut can_frame2 = CANFrame::new(5);
+
+        let ref_canframe = can_frame2.clone();
+
+        let mut bus = Bus::new();
+        bus.borrow_mut().send(can_frame1);
+        bus.borrow_mut().send(can_frame2);
+
+        assert_eq!(ref_canframe, *bus.borrow().recieve().unwrap());
     }
 }
 
