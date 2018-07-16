@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use canframe::CANFrame;
-use encoder::Encoder;
 
 pub struct Bus {
     content: Option<CANFrame>
@@ -17,7 +16,7 @@ impl Bus {
         ))
     }
 
-    fn send(&mut self, input: CANFrame) -> () {
+    pub fn send(&mut self, input: CANFrame) -> () {
         if self.content.is_some() && (self.recieve().unwrap() < &input) {
             return;
         } else {
@@ -25,7 +24,7 @@ impl Bus {
         }
     }
 
-    fn recieve(&self) -> Option<&CANFrame> {
+    pub fn recieve(&self) -> Option<&CANFrame> {
         self.content.as_ref()
     }
 }
@@ -34,6 +33,7 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use encoder::Encoder;
 
     #[test]
     fn test_bus_new() {

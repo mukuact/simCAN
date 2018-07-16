@@ -1,9 +1,8 @@
 extern crate bytes;
-use self::bytes::{Bytes, BytesMut, BufMut};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use Bus;
+use bus::Bus;
 use canframe::CANFrame;
 use encoder::Encoder;
 
@@ -20,45 +19,43 @@ impl ECU {
         }
     }
 
-    pub fn send(&mut self, input: &str) -> (){
+    pub fn send<'a>(&self, input: &'a str) -> Result<&'a str, &'static str> {
+        self.send_sub(input);
+        self.check(input)
+    }
+
+    fn send_sub(&self, input: &str) {
+        let mut canframe = CANFrame::new(self.id);
         let input_byte = Encoder::encode(input).unwrap();
-        let mut buf = BytesMut::with_capacity(input_byte.len()+1024);
-        buf.put(self.id as u8);
-        buf.put(input_byte);
-        // add id as a header
-        self.connection.borrow_mut().send(&buf.take());
+        canframe.set_RTR_and_ctr_bits(input_byte.len());
+        canframe.set_data(input_byte);
+        canframe.prepare_send();
+
+        self.connection.borrow_mut().send(canframe)
     }
 
-    pub fn send_dataframe(&self, input: &str) -> bool {
-        let mut frame = CANFrame::new(self.id);
-        let input_byte = Encoder::encode(input).unwrap();
-        frame.set_RTR_and_ctr_bits(input_byte.len());
-        true
-    }
-
-    pub fn receive(&self) -> (){
-        let connection = self.connection.borrow();
-        let recieved_content = connection.receive();
-        print!("ECU{}: the bus content is ", self.id);
-        println!("{}", Encoder::reverse(recieved_content).unwrap());
-        for a_byte in recieved_content {
-            println!("{:07b}", a_byte);
+    fn check<'a> (& self, input_content: &'a str) -> Result<&'a str, &'static str> {
+        let bus = self.connection.borrow();
+        let bus_content = bus.recieve().ok_or("Bus is empty")?;
+        println!("bus {:?}", bus_content.get_data());
+        println!("in {:?}", Encoder::encode(input_content).unwrap());
+        if bus_content.get_data() == Encoder::encode(input_content).unwrap() {
+            Ok(input_content)
+        } else {
+            Err("Failed to send")
         }
-
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    pub fn zero_pudding(id: usize, num: usize) -> Bytes {
-        let mut buf = BytesMut::with_capacity(num);
-
-        let digits: usize = ((id as f32).log2().floor() + 1.0) as usize ;
-        let len  = num - digits;
-
-        for i in 0..len {
-            buf.put(0x00 as u8);
-        }
-        buf.put(id as u8);
-        let result = buf.freeze();
-        result
+    #[test]
+    fn test_ecu_send_and_check() {
+        let bus = Bus::new();
+        let mut ecu = ECU::new(1, &bus);
+        let res = ecu.send("hoge");
+        res.unwrap();
     }
 }
