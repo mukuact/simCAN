@@ -45,18 +45,18 @@ impl CANFrame{
             match i {
                 0 => self.frame[0] |= (*onebyte as u32) << 5,
                 1 => {
-                    self.frame[0] |= (onebyte.get_bits(3..8) as u32) ;
-                    self.frame[1] |= (onebyte.get_bits(0..3) as u32) << 27;
+                    self.frame[0] |= onebyte.get_bits(3..8) as u32 ;
+                    self.frame[1] |= (onebyte.get_bits(0..3) as u32) << 29;
                 },
-                2 => self.frame[1] |= (*onebyte as u32) << 19,
-                3 => self.frame[1] |= (*onebyte as u32) << 11,
-                4 => self.frame[1] |= (*onebyte as u32) << 3,
+                2 => self.frame[1] |= (*onebyte as u32) << 21,
+                3 => self.frame[1] |= (*onebyte as u32) << 13,
+                4 => self.frame[1] |= (*onebyte as u32) << 5,
                 5 => { 
-                    self.frame[1] |= (onebyte.get_bits(5..8) as u32);
-                    self.frame[2] |= (onebyte.get_bits(0..5) as u32) << 25;
+                    self.frame[1] |= onebyte.get_bits(3..8) as u32;
+                    self.frame[2] |= (onebyte.get_bits(0..3) as u32) << 29;
                 },
-                6 => self.frame[2] |= (*onebyte as u32) << 17,
-                7 => self.frame[2] |= (*onebyte as u32) << 9,
+                6 => self.frame[2] |= (*onebyte as u32) << 21,
+                7 => self.frame[2] |= (*onebyte as u32) << 13,
                 // 8 => self.frame[2] |= (*onebyte as u32) << 1,
                 _ => println!("fuga"),
             }
@@ -248,8 +248,8 @@ mod tests {
         can_frame.set_RTR_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
         assert_eq!(can_frame.view()[0], 0x865F0D0D);
-        assert_eq!(can_frame.view()[1], 0x3B3B2B33);
-        assert_eq!(can_frame.view()[2], 0x2ACEC200);
+        assert_eq!(can_frame.view()[1], 0xECECACCE);
+        assert_eq!(can_frame.view()[2], 0xACEC2000);
     }
 
     #[test]
@@ -258,8 +258,8 @@ mod tests {
         can_frame.set_RTR_and_ctr_bits(6);
         can_frame.set_data("hogefuga".as_bytes());
         assert_eq!(can_frame.view()[0], 0x865ECD0D);
-        assert_eq!(can_frame.view()[1], 0x3B3B2B33);
-        assert_eq!(can_frame.view()[2], 0x2A000000);
+        assert_eq!(can_frame.view()[1], 0xECECACCE);
+        assert_eq!(can_frame.view()[2], 0xA0000000);
     }
 
     #[test]
@@ -289,10 +289,9 @@ mod tests {
         can_frame.set_RTR_and_ctr_bits(3);
         can_frame.set_data(&data);
         can_frame.prepare_send();
-        println!("{:X}", can_frame);
         assert_eq!(can_frame.view()[0], 0x820F8C17);
-        assert_eq!(can_frame.view()[1], 0xD83B8208);
-        assert_eq!(can_frame.view()[2], 0x20820820);
+        assert_eq!(can_frame.view()[1], 0xD8DC1041);
+        assert_eq!(can_frame.view()[2], 0x04104104);
     }
 
     #[test]
