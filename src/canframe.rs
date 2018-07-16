@@ -40,6 +40,25 @@ impl CANFrame{
         self.frame[0] |= (data_length as u32) << (32-19);
     }
 
+    pub fn prepare_send(&mut self) {
+        let mut cursor = 0;
+        while cursor < 64*3 {
+            if let Some(masked_data) = self.get_5bit_at(cursor) {
+                match CANFrame::check_bit_change(&masked_data) {
+                    Ok(change_point) => {
+                        cursor += change_point;
+                    },
+                    Err(bit) => {
+                        self.add_bit_at(cursor+5, !bit);
+                        cursor += 5;
+                    }
+                }
+            } else {
+                return;
+            }
+        }
+    }
+
     pub fn set_data(&mut self, data: &[u8]) {
         for (i, onebyte) in (0..self.data_size()).zip(data.iter()) {
             match i {
@@ -102,45 +121,6 @@ impl CANFrame{
         array
     }
 
-    pub fn prepare_send(&mut self) {
-        let mut cursor = 0;
-        let mask = 0b11111;
-        let mut masked_data;
-        while cursor < 64*3 {
-            match cursor {
-                0...27 => {
-                    masked_data = (self.frame[0] & (mask << (32 - cursor - 5))) >> (32 - cursor - 5);
-                },
-                28...31 => {
-                    let first_frame = self.frame[0] & (mask >> (5 - (32 - cursor)));
-                    let second_frame = (self.frame[1] & (mask << 27)) >> (27 + (32 - cursor));
-                    masked_data = first_frame << (5 -(32 - cursor)) | second_frame;
-                },
-                32...59 => {
-                    masked_data = (self.frame[1] & (mask << (64 - cursor - 5))) >> (64 - cursor - 5);
-                },
-                60...63 => {
-                    let first_frame = self.frame[1] & (mask >> (5 - (64 - cursor)));
-                    let second_frame = (self.frame[2] & (mask << 27)) >> (27 + (64 - cursor));
-                    masked_data = first_frame << (5 -(64 - cursor)) | second_frame;
-                },
-                64...90 => {
-                    masked_data = (self.frame[2] & (mask << (96 - cursor - 5))) >> (96 - cursor - 5);
-                },
-                _=> return,
-            }
-            match CANFrame::check_bit_change(&masked_data) {
-                Ok(change_point) => {
-                    cursor += change_point;
-                },
-                Err(bit) => {
-                    self.add_bit_at(cursor+5, !bit);
-                    cursor += 5;
-                }
-            }
-        }
-    }
-
     pub fn view(&self) -> &[u32] {
         &self.frame[..]
     }
@@ -193,6 +173,34 @@ impl CANFrame{
         let mut data_length = 0;
         data_length |= (self.frame[0] & 0x0001E000) >> 13;
         data_length as usize
+    }
+
+    fn get_5bit_at(&self, cursor: usize) -> Option<u32> {
+        let mask = 0b11111;
+        let mut masked_data;
+        match cursor {
+            0...27 => {
+                masked_data = (self.frame[0] & (mask << (32 - cursor - 5))) >> (32 - cursor - 5);
+            },
+            28...31 => {
+                let first_frame = self.frame[0] & (mask >> (5 - (32 - cursor)));
+                let second_frame = (self.frame[1] & (mask << 27)) >> (27 + (32 - cursor));
+                masked_data = first_frame << (5 -(32 - cursor)) | second_frame;
+            },
+            32...59 => {
+                masked_data = (self.frame[1] & (mask << (64 - cursor - 5))) >> (64 - cursor - 5);
+            },
+            60...63 => {
+                let first_frame = self.frame[1] & (mask >> (5 - (64 - cursor)));
+                let second_frame = (self.frame[2] & (mask << 27)) >> (27 + (64 - cursor));
+                masked_data = first_frame << (5 -(64 - cursor)) | second_frame;
+            },
+            64...90 => {
+                masked_data = (self.frame[2] & (mask << (96 - cursor - 5))) >> (96 - cursor - 5);
+            },
+            _=> return None,
+        }
+        Some(masked_data)
     }
 }
 
