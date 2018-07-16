@@ -63,6 +63,45 @@ impl CANFrame{
         }
     }
 
+    pub fn get_data(&self) -> [u8; 8]{
+        let data_len = self.data_size();
+        let mut array: [u8; 8] = [0; 8];
+        for i in 0..data_len {
+            match i {
+                0 => {
+                    array[i] = self.frame[0].get_bits(5..13) as u8;
+                },
+                1 => {
+                    let mut tmp = (self.frame[0].get_bits(0..5) << 3) as u8;
+                    tmp |= self.frame[1].get_bits(29..32) as u8;
+                    array[i] = tmp
+                },
+                2 => {
+                    array[i] = self.frame[1].get_bits(21..29) as u8;
+                },
+                3 => {
+                    array[i] = self.frame[1].get_bits(13..20) as u8;
+                },
+                4 => {
+                    array[i] = self.frame[1].get_bits(5..12) as u8;
+                },
+                5 => {
+                    let mut tmp = (self.frame[1].get_bits(0..5) << 3) as u8;
+                    tmp |= self.frame[2].get_bits(29..32) as u8;
+                    array[i] = tmp
+                },
+                6 => {
+                    array[i] = self.frame[2].get_bits(21..29) as u8;
+                },
+                7 => {
+                    array[i] = self.frame[2].get_bits(13..20) as u8;
+                },
+                _ => (),
+            }
+        }
+        array
+    }
+
     pub fn prepare_send(&mut self) {
         let mut cursor = 0;
         let mask = 0b11111;
@@ -313,5 +352,14 @@ mod tests {
 
         assert_eq!(result_true, true);
         assert_eq!(result_false, false);
+    }
+
+    #[test]
+    fn test_get_data() {
+        let mut can_frame = CANFrame::new(1);
+        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_data("hogefuga".as_bytes());
+
+        assert_eq!(can_frame.get_data(), "hogefuga".as_bytes());
     }
 }
