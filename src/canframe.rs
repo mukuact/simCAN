@@ -8,6 +8,7 @@ use std::result::Result;
 #[derive(Clone)]
 pub struct CANFrame {
     frame: [u32; 3],
+    bitstaffed: bool,
 }
 
 impl CANFrame{
@@ -22,7 +23,8 @@ impl CANFrame{
         sender.set_bit(length-1, true);
 
         CANFrame {
-            frame: [sender, 0, 0]
+            frame: [sender, 0, 0],
+            bitstaffed: false,
         }
     }
 
@@ -54,40 +56,10 @@ impl CANFrame{
                     }
                 }
             } else {
-                return;
+                break;
             }
         }
-    }
-
-    fn remove_bitstuff(&self) -> [u32; 3] {
-        let mut cursor_bus = 0;
-        let mut cursor_out = 0;
-        let mut res_frame: [u32;3] = [0; 3];
-        // println!("{}", self);
-        while cursor_bus < 64*3 {
-            //println!("{}", cursor_bus);
-            if let Some(masked_data) = self.get_5bit_at(cursor_bus) {
-                match CANFrame::check_bit_change(&masked_data) {
-                    Ok(change_point) => {
-                        //println!("{:05b}", masked_data >> (5- change_point));
-                        CANFrame::set_at(cursor_out, masked_data >> (5 - change_point), change_point,&mut res_frame);
-                        cursor_bus += change_point;
-                        cursor_out += change_point;
-////        for i in 0..res_frame.len() {
- //           print!("{:032b}", res_frame[i]);
- //       }
- //       println!("");
-                    },
-                    Err(bit) => {
-                        // TODO: bunnki
-                        CANFrame::set_at(cursor_out, masked_data, 5,&mut res_frame);
-                        cursor_bus += 6;
-                        cursor_out += 5;
-                    },
-                }
-            } else {break;}
-        }
-        res_frame
+        self.bitstaffed = true;
     }
 
     pub fn set_data(&mut self, data: &[u8]) {
@@ -114,7 +86,7 @@ impl CANFrame{
     }
 
     pub fn get_data(&self) -> [u8; 8]{
-        let frame = self.remove_bitstuff();
+        let frame = if self.bitstaffed {self.remove_bitstuff()}else{self.frame};
         let data_len = self.data_size();
         let mut array: [u8; 8] = [0; 8];
         for i in 0..data_len {
@@ -257,35 +229,42 @@ impl CANFrame{
         }
     }
 
-    pub fn deb_set_at() {
-        let mut hoge: [u32; 3] = [0; 3];
-        println!("0b101101110");
-        CANFrame::set_at(30, 0b101101110, 9, &mut hoge);
-        for i in 0..hoge.len() {
-            print!("{:032b}", hoge[i]);
+    fn remove_bitstuff(&self) -> [u32; 3] {
+        let mut cursor_bus = 0;
+        let mut cursor_out = 0;
+        let mut res_frame: [u32;3] = [0; 3];
+        let mut prev_stuff = false;
+        while cursor_bus < 64*3 {
+            if let Some(masked_data) = self.get_5bit_at(cursor_bus) {
+                match CANFrame::check_bit_change(&masked_data) {
+                    Ok(change_point) => {
+                        if prev_stuff{
+                            cursor_bus += 1;
+                            prev_stuff = false;
+                        }
+                        else {
+                            CANFrame::set_at(cursor_out, masked_data >> (5 - change_point), change_point,&mut res_frame);
+                            cursor_bus += change_point;
+                            cursor_out += change_point;
+                        }
+                    },
+                    Err(bit) => {
+                        if prev_stuff{
+                            CANFrame::set_at(cursor_out, masked_data >> 1, 4, &mut res_frame);
+                            cursor_bus += 5;
+                            cursor_out += 4;
+                        }
+                        else {
+                            CANFrame::set_at(cursor_out, masked_data, 5, &mut res_frame);
+                            cursor_bus += 5;
+                            cursor_out += 5;
+                            prev_stuff = true;
+                        }
+                    },
+                }
+            } else {break;}
         }
-        println!("");
-        let mut hoge: [u32; 3] = [0; 3];
-        CANFrame::set_at(3, 0b101101110, 9, &mut hoge);
-        for i in 0..hoge.len() {
-            print!("{:032b}", hoge[i]);
-        }
-        println!("");
-        let mut hoge: [u32; 3] = [0; 3];
-        CANFrame::set_at(67, 0b101101110, 9, &mut hoge);
-        for i in 0..hoge.len() {
-            print!("{:032b}", hoge[i]);
-        }
-        println!("");
-    }
-
-    pub fn deb_remove_bitstaff(&self) {
-        let hoge = self.remove_bitstuff();
-        for i in 0..hoge.len() {
-            print!("{:032b}_", hoge[i]);
-        }
-        println!("");
-        println!("{}", self);
+        res_frame
     }
 }
 
@@ -457,13 +436,12 @@ mod tests {
     }
 
     #[test]
-    fn deb() {
-        //CANFrame::deb_set_at();
+    fn test_get_data_after_bitstaff() {
         let mut can_frame = CANFrame::new(1);
         can_frame.set_RTR_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
-        println!("{}", can_frame);
         can_frame.prepare_send();
-        can_frame.deb_remove_bitstaff();
+
+        assert_eq!(can_frame.get_data(), "hogefuga".as_bytes());
     }
 }
