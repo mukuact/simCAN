@@ -4,6 +4,7 @@ use simCAN::ecu::ECU;
 fn main() {
 }
 
+#[test]
 fn test_bus_and_ecu(){
     // let bus = Bus::new();
     // let mut ecu1 = ECU::new(1, &bus);

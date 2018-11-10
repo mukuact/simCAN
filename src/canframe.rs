@@ -28,13 +28,13 @@ impl CANFrame{
         }
     }
 
-    pub fn set_RTR_and_ctr_bits(&mut self, data_length: usize) {
+    pub fn set_rtr_and_ctr_bits(&mut self, data_length: usize) {
         if data_length > 8 {
             panic!("data_length must be within 8bytes");
         }
-        // reset RTR, IDE, r, data_length
+        // reset rtr, IDE, r, data_length
         self.frame[0] &= !0x0007E000;
-        // set RTR
+        // set rtr
         self.frame[0] |= 1 << (32-13) ;
         // set IDE, r
         self.frame[0] |= (1 << (32-14)) | (1 << (32-15)) ;
@@ -164,7 +164,7 @@ impl CANFrame{
     }
 
     fn check_bit_change(data: &u32) -> Result<usize, bool> {
-        let mut prev_bit = data.get_bit(0);
+        let prev_bit = data.get_bit(0);
         for i in 1..5 {
             let bit = data.get_bit(i);
             if prev_bit != bit {
@@ -182,7 +182,7 @@ impl CANFrame{
 
     fn get_5bit_at(&self, cursor: usize) -> Option<u32> {
         let mask = 0b11111;
-        let mut masked_data;
+        let masked_data;
         match cursor {
             0...27 => {
                 masked_data = (self.frame[0] & (mask << (32 - cursor - 5))) >> (32 - cursor - 5);
@@ -249,7 +249,7 @@ impl CANFrame{
                             cursor_out += change_point;
                         }
                     },
-                    Err(bit) => {
+                    Err(_) => {
                         if prev_stuff{
                             CANFrame::set_at(cursor_out, masked_data >> 1, 4, &mut res_frame);
                             cursor_bus += 5;
@@ -307,43 +307,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn make_CANFrame_id_1() {
+    fn make_canframe_id_1() {
         let can_frame = CANFrame::new(1);
         assert_eq!(can_frame.view()[0], 0b10000000000100000000000000000000)
     }
 
     #[test]
-    fn make_CANFrame_id_100() {
+    fn make_canframe_id_100() {
         let can_frame = CANFrame::new(101);
         assert_eq!(can_frame.view()[0], 0b10000110010100000000000000000000)
     }
 
     #[test]
     #[should_panic]
-    fn make_CANFrame_id_over11bit() {
-        let can_frame = CANFrame::new(2100);
+    fn make_canframe_id_over11bit() {
+        let _can_frame = CANFrame::new(2100);
     }
 
     #[test]
     fn prepare_id101_8bytes_data() {
         let mut can_frame = CANFrame::new(101);
-        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_rtr_and_ctr_bits(8);
         assert_eq!(can_frame.view()[0], 0b10000110010111110000000000000000)
     }
 
     #[test]
     fn prepare_id101_6bytes_data() {
         let mut can_frame = CANFrame::new(101);
-        can_frame.set_RTR_and_ctr_bits(6);
+        can_frame.set_rtr_and_ctr_bits(6);
         assert_eq!(can_frame.view()[0], 0b10000110010111101100000000000000)
     }
 
     #[test]
-    fn set_RTRs_twice() {
+    fn set_rtrs_twice() {
         let mut can_frame = CANFrame::new(101);
-        can_frame.set_RTR_and_ctr_bits(7);
+        can_frame.set_rtr_and_ctr_bits(7);
         assert_eq!(can_frame.view()[0], 0b10000110010111101110000000000000);
-        can_frame.set_RTR_and_ctr_bits(5);
+        can_frame.set_rtr_and_ctr_bits(5);
         assert_eq!(can_frame.view()[0], 0b10000110010111101010000000000000);
     }
 
@@ -351,13 +351,13 @@ mod tests {
     #[should_panic]
     fn prepare_10byte_data() {
         let mut can_frame = CANFrame::new(4);
-        can_frame.set_RTR_and_ctr_bits(10);
+        can_frame.set_rtr_and_ctr_bits(10);
     }
 
     #[test]
     fn test_set_data_8byte_hogefuga() {
         let mut can_frame = CANFrame::new(101);
-        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_rtr_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
         assert_eq!(can_frame.view()[0], 0x865F0D0D);
         assert_eq!(can_frame.view()[1], 0xECECACCE);
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_set_data_6byte_hogefuga() {
         let mut can_frame = CANFrame::new(101);
-        can_frame.set_RTR_and_ctr_bits(6);
+        can_frame.set_rtr_and_ctr_bits(6);
         can_frame.set_data("hogefuga".as_bytes());
         assert_eq!(can_frame.view()[0], 0x865ECD0D);
         assert_eq!(can_frame.view()[1], 0xECECACCE);
@@ -377,9 +377,9 @@ mod tests {
     #[test]
     fn test_size() {
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_rtr_and_ctr_bits(8);
         assert_eq!(can_frame.data_size(), 8);
-        can_frame.set_RTR_and_ctr_bits(6);
+        can_frame.set_rtr_and_ctr_bits(6);
         assert_eq!(can_frame.data_size(), 6);
     }
 
@@ -387,7 +387,7 @@ mod tests {
     fn test_bitstuffing() {
         let data: [u8; 2] = [0x3, 0xE0];
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(2);
+        can_frame.set_rtr_and_ctr_bits(2);
         can_frame.set_data(&data);
         can_frame.prepare_send();
         assert_eq!(can_frame.view()[0], 0x820F8827);
@@ -398,7 +398,7 @@ mod tests {
     fn test_bitstuffing2() {
         let data: [u8; 3] = [0x3, 0xF8, 0xDC];
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(3);
+        can_frame.set_rtr_and_ctr_bits(3);
         can_frame.set_data(&data);
         can_frame.prepare_send();
         assert_eq!(can_frame.view()[0], 0x820F8C17);
@@ -410,7 +410,7 @@ mod tests {
     fn test_prepare_send_twice() {
         let data: [u8; 3] = [0x3, 0xF8, 0xDC];
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(3);
+        can_frame.set_rtr_and_ctr_bits(3);
         can_frame.set_data(&data);
         can_frame.prepare_send();
         can_frame.prepare_send();
@@ -421,8 +421,8 @@ mod tests {
 
     #[test]
     fn test_ord_id_11_vs_30() {
-        let mut can_frame1 = CANFrame::new(11);
-        let mut can_frame2 = CANFrame::new(30);
+        let can_frame1 = CANFrame::new(11);
+        let can_frame2 = CANFrame::new(30);
         
         let result = can_frame1 < can_frame2;
         assert_eq!(result, true);
@@ -430,8 +430,8 @@ mod tests {
 
     #[test]
     fn test_ord_same_id_different_data () {
-        let mut can_frame1 = CANFrame::new(11);
-        let mut can_frame2 = CANFrame::new(11);
+        let can_frame1 = CANFrame::new(11);
+        let can_frame2 = CANFrame::new(11);
         
         let result_true = can_frame1 <= can_frame2;
         let result_false = can_frame1 < can_frame2;
@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_get_data() {
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_rtr_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
 
         assert_eq!(can_frame.get_data(), "hogefuga".as_bytes());
@@ -452,7 +452,7 @@ mod tests {
     #[test]
     fn test_get_data_after_bitstaff() {
         let mut can_frame = CANFrame::new(1);
-        can_frame.set_RTR_and_ctr_bits(8);
+        can_frame.set_rtr_and_ctr_bits(8);
         can_frame.set_data("hogefuga".as_bytes());
         can_frame.prepare_send();
 

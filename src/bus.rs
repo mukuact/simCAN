@@ -44,28 +44,28 @@ mod tests {
     #[test]
     fn test_bus_send_and_recieve() {
         let mut can_frame = CANFrame::new(5);
-        can_frame.set_RTR_and_ctr_bits(6);
+        can_frame.set_rtr_and_ctr_bits(6);
         can_frame.set_data(Encoder::encode("foobar").unwrap());
         can_frame.prepare_send();
 
         let mut ref_canframe = CANFrame::new(5);
-        ref_canframe.set_RTR_and_ctr_bits(6);
+        ref_canframe.set_rtr_and_ctr_bits(6);
         ref_canframe.set_data(Encoder::encode("foobar").unwrap());
         ref_canframe.prepare_send();
 
-        let mut bus = Bus::new();
+        let bus = Bus::new();
         bus.borrow_mut().send(can_frame);
         assert_eq!(ref_canframe, *bus.borrow().recieve().unwrap());
     }
 
     #[test]
     fn test_bus_send_twice_first_prior() {
-        let mut can_frame1 = CANFrame::new(5);
-        let mut can_frame2 = CANFrame::new(10);
+        let can_frame1 = CANFrame::new(5);
+        let can_frame2 = CANFrame::new(10);
 
         let ref_canframe = can_frame1.clone();
 
-        let mut bus = Bus::new();
+        let bus = Bus::new();
         bus.borrow_mut().send(can_frame1);
         bus.borrow_mut().send(can_frame2);
 
@@ -75,12 +75,12 @@ mod tests {
 
     #[test]
     fn test_bus_send_twice_second_prior() {
-        let mut can_frame1 = CANFrame::new(10);
-        let mut can_frame2 = CANFrame::new(5);
+        let can_frame1 = CANFrame::new(10);
+        let can_frame2 = CANFrame::new(5);
 
         let ref_canframe = can_frame2.clone();
 
-        let mut bus = Bus::new();
+        let bus = Bus::new();
         bus.borrow_mut().send(can_frame1);
         bus.borrow_mut().send(can_frame2);
 

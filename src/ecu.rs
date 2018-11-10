@@ -27,7 +27,7 @@ impl ECU {
     fn send_sub(&self, input: &str) -> CANFrame {
         let mut canframe = CANFrame::new(self.id);
         let input_byte = Encoder::encode(input).unwrap();
-        canframe.set_RTR_and_ctr_bits(input_byte.len());
+        canframe.set_rtr_and_ctr_bits(input_byte.len());
         canframe.set_data(input_byte);
         canframe.prepare_send();
         let ret_val = canframe.clone();
@@ -66,7 +66,7 @@ mod tests {
         let bus = Bus::new();
         let ecu1 = ECU::new(1, &bus);
         let ecu2 = ECU::new(2, &bus);
-        let res1 = ecu1.send("hoge");
+        let _res1 = ecu1.send("hoge");
         let res2 = ecu2.send("fuga");
         assert_eq!(res2.unwrap_err(), "Failed to send")
     }
@@ -76,7 +76,7 @@ mod tests {
         let bus = Bus::new();
         let ecu1 = ECU::new(1, &bus);
         let ecu2 = ECU::new(2, &bus);
-        let res2 = ecu2.send("fuga");
+        let _res2 = ecu2.send("fuga");
         let res1 = ecu1.send("hoge");
         assert_eq!(res1.unwrap().as_str(), "hoge")
     }
