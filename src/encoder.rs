@@ -17,6 +17,13 @@ impl Encoder {
     }
 
     pub fn reverse(input: &[u8]) -> Result<&str, Utf8Error> {
-        str::from_utf8(input)
+        let mut end = 0;
+        for (i, char_) in input.iter().rev().enumerate() {
+            if char_ != &(0 as u8) {
+                end = input.len() - i;
+                break;
+            }
+        }
+        str::from_utf8(&input[..end])
     }
 }

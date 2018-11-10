@@ -19,7 +19,7 @@ impl ECU {
         }
     }
 
-    pub fn send<'a>(&'a self, input: &str) -> Result<String, &'static str> {
+    pub fn send<'a>(&'a self, input: &str) -> Result<String, String> {
         let frame_sended = self.send_sub(input);
         self.check(&frame_sended)
     }
@@ -36,14 +36,15 @@ impl ECU {
         ret_val
     }
 
-    fn check(& self, input_frame: &CANFrame) -> Result<String, &'static str> {
+    fn check(& self, input_frame: &CANFrame) -> Result<String, String> {
         let bus = self.connection.borrow();
-        let bus_frame = bus.recieve().ok_or("Bus is empty")?;
+        let bus_frame = bus.recieve().ok_or("Bus is empty".to_string())?;
         if bus_frame == input_frame {
-            Ok(Encoder::reverse(&input_frame.get_data())
-                .map(|v| v.to_owned()).unwrap())
+            Encoder::reverse(&input_frame.get_data()) 
+                .map(|v| v.to_owned())
+                .map_err(|e| e.to_string())
         } else {
-            Err("Failed to send")
+            Err("Failed to send".to_string())
         }
     }
 }
@@ -55,19 +56,28 @@ mod tests {
     #[test]
     fn test_ecu_send_and_check() {
         let bus = Bus::new();
-        let mut ecu = ECU::new(1, &bus);
+        let ecu = ECU::new(1, &bus);
         let res = ecu.send("hoge");
-        println!("{:?}",res.unwrap());
+        assert_eq!(res.unwrap().as_str(), "hoge")
     }
 
     #[test]
     fn test_ecu_sending_twice_1st_prior_to_2nd(){
         let bus = Bus::new();
-        let mut ecu1 = ECU::new(1, &bus);
-        let mut ecu2 = ECU::new(2, &bus);
+        let ecu1 = ECU::new(1, &bus);
+        let ecu2 = ECU::new(2, &bus);
+        let res1 = ecu1.send("hoge");
+        let res2 = ecu2.send("fuga");
+        assert_eq!(res2.unwrap_err(), "Failed to send")
     }
 
     #[test]
     fn test_ecu_sending_twice_2nd_prior_to_1st(){
+        let bus = Bus::new();
+        let ecu1 = ECU::new(1, &bus);
+        let ecu2 = ECU::new(2, &bus);
+        let res2 = ecu2.send("fuga");
+        let res1 = ecu1.send("hoge");
+        assert_eq!(res1.unwrap().as_str(), "hoge")
     }
 }
