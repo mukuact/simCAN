@@ -43,6 +43,7 @@ impl CANFrame{
     }
 
     pub fn prepare_send(&mut self) {
+        if self.bitstaffed { return; }
         let mut cursor = 0;
         while cursor < 64*3 {
             if let Some(masked_data) = self.get_5bit_at(cursor) {
@@ -399,6 +400,19 @@ mod tests {
         let mut can_frame = CANFrame::new(1);
         can_frame.set_RTR_and_ctr_bits(3);
         can_frame.set_data(&data);
+        can_frame.prepare_send();
+        assert_eq!(can_frame.view()[0], 0x820F8C17);
+        assert_eq!(can_frame.view()[1], 0xD8DC1041);
+        assert_eq!(can_frame.view()[2], 0x04104104);
+    }
+
+    #[test]
+    fn test_prepare_send_twice() {
+        let data: [u8; 3] = [0x3, 0xF8, 0xDC];
+        let mut can_frame = CANFrame::new(1);
+        can_frame.set_RTR_and_ctr_bits(3);
+        can_frame.set_data(&data);
+        can_frame.prepare_send();
         can_frame.prepare_send();
         assert_eq!(can_frame.view()[0], 0x820F8C17);
         assert_eq!(can_frame.view()[1], 0xD8DC1041);
