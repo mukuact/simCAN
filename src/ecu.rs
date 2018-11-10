@@ -24,6 +24,14 @@ impl ECU {
         self.check(&frame_sended)
     }
 
+    pub fn receive(&self) ->  Result<String, String> {
+        let bus = self.connection.borrow();
+        let bus_frame = bus.recieve().ok_or("Bus is empty".to_string())?;
+        Encoder::reverse(&bus_frame.get_data()) 
+            .map(|v| v.to_owned())
+            .map_err(|e| e.to_string())
+    }
+
     fn send_sub(&self, input: &str) -> CANFrame {
         let mut canframe = CANFrame::new(self.id);
         let input_byte = Encoder::encode(input).unwrap();
@@ -79,5 +87,23 @@ mod tests {
         let _res2 = ecu2.send("fuga");
         let res1 = ecu1.send("hoge");
         assert_eq!(res1.unwrap().as_str(), "hoge")
+    }
+
+    #[test]
+    fn test_ecu_recieve_its_own(){
+        let bus = Bus::new();
+        let ecu = ECU::new(1, &bus);
+        ecu.send("hoge").unwrap();
+        assert_eq!(ecu.receive(), Ok("hoge".to_string()))
+    }
+
+    #[test]
+    fn test_ecu_one_sends_and_another_recieves(){
+        let bus = Bus::new();
+        let ecu1 = ECU::new(1, &bus);
+        let ecu2 = ECU::new(2, &bus);
+        let res1 = ecu1.send("hoge");
+        let res2 = ecu2.receive();
+        assert_eq!(res1, res2);
     }
 }
